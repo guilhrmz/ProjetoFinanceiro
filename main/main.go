@@ -209,7 +209,6 @@ func buildPageData(transactions []Transaction) PageData {
 func main() {
 	r := gin.Default()
 
-	// Carrega o template
 	tmpl := template.Must(template.ParseFiles("index.html"))
 
 	r.StaticFile("/style.css", "./style.css")
