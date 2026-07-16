@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Financeiro</title>
+    <title>Nexo</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/main/style.css">
@@ -15,8 +15,9 @@
 
     <!-- Topbar -->
     <div class="topbar">
-        <span class="brand">Financeiro</span>
+        <span class="brand">Nexo</span>
         <div class="date-pill">{{.MesAno}}</div>
+        <a href="/sair" class="btn-sair">Sair</a>
     </div>
 
     <div class="main-grid">
@@ -96,6 +97,7 @@
                                     <th>ID</th>
                                     <th>Categoria</th>
                                     <th>Tipo</th>
+                                    <th>Data</th>
                                     <th class="num">Valor</th>
                                 </tr>
                             </thead>
@@ -107,9 +109,13 @@
                                     <td>{{.Category}}</td>
                                     {{if eq .Type "Entrada"}}
                                     <td><span class="pill-tipo entrada">Entrada</span></td>
-                                    <td class="num val-in">+ R$ {{.ValorFormatado}}</td>
                                     {{else}}
                                     <td><span class="pill-tipo saida">Saída</span></td>
+                                    {{end}}
+                                    <td class="data">{{.Data}}</td>
+                                    {{if eq .Type "Entrada"}}
+                                    <td class="num val-in">+ R$ {{.ValorFormatado}}</td>
+                                    {{else}}
                                     <td class="num val-out">− R$ {{.ValorFormatado}}</td>
                                     {{end}}
                                 </tr>
@@ -121,6 +127,15 @@
                                 {{end}}
                             </tbody>
                         </table>
+                    </div>
+                    <div class="ledger-footer">
+                        <a href="/exportar-csv" class="btn-csv">↓ Exportar CSV</a>
+                        <div class="filtro-bar">
+                            <a href="/dashboard?dias=7"  class="filtro-btn{{if eq .FiltroAtivo "7"}} ativo{{end}}">7d</a>
+                            <a href="/dashboard?dias=15" class="filtro-btn{{if eq .FiltroAtivo "15"}} ativo{{end}}">15d</a>
+                            <a href="/dashboard?dias=30" class="filtro-btn{{if eq .FiltroAtivo "30"}} ativo{{end}}">30d</a>
+                            <a href="/dashboard"         class="filtro-btn{{if eq .FiltroAtivo ""}} ativo{{end}}">Todos</a>
+                        </div>
                     </div>
                 </div>
 

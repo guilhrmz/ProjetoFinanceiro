@@ -59,6 +59,7 @@ type Transaction struct {
 	Category string  `json:"category"`
 	Type     string  `json:"type"`
 	Valor    float64 `json:"valor"`
+	Data     string  `json:"data"`
 }
 
 type TransactionView struct {
@@ -67,6 +68,7 @@ type TransactionView struct {
 	Type           string
 	Valor          float64
 	ValorFormatado string
+	Data           string
 }
 
 type CategoriaView struct {
@@ -87,6 +89,7 @@ type PageData struct {
 	Transactions  []TransactionView
 	Categorias    []CategoriaView
 	PieChart      template.HTML
+	FiltroAtivo   string
 }
 
 var coresCategorias = []string{
@@ -99,18 +102,30 @@ var coresCategorias = []string{
 }
 
 func gerarPieChart(categorias []CategoriaView, total float64) template.HTML {
-	if total == 0 || len(categorias) == 0 {
+	var valid []CategoriaView
+	for _, cat := range categorias {
+		if cat.Valor > 0 {
+			valid = append(valid, cat)
+		}
+	}
+
+	if total == 0 || len(valid) == 0 {
 		return template.HTML(`<svg viewBox="0 0 160 160" width="160" height="160"><circle cx="80" cy="80" r="70" fill="#F3F4F6"/></svg>`)
+	}
+
+	// Arco de 360° degenera em SVG; usa círculo cheio para categoria única
+	if len(valid) == 1 {
+		return template.HTML(fmt.Sprintf(
+			`<svg viewBox="0 0 160 160" width="160" height="160"><circle cx="80" cy="80" r="70" fill="%s"/></svg>`,
+			valid[0].Cor,
+		))
 	}
 
 	cx, cy, r := 80.0, 80.0, 70.0
 	angle := -math.Pi / 2
 	paths := ""
 
-	for _, cat := range categorias {
-		if cat.Valor <= 0 {
-			continue
-		}
+	for _, cat := range valid {
 		sweep := (cat.Valor / total) * 2 * math.Pi
 		endAngle := angle + sweep
 
@@ -163,7 +178,7 @@ func formatarValor(v float64) string {
 }
 
 func fetchTransactions() ([]Transaction, error) {
-	resp, err := http.Get("https://apifinanceiro-aeeo.onrender.com/api/v1/transactions")
+	resp, err := http.Get(apiBase + "/api/v1/transactions")
 	if err != nil {
 		return nil, err
 	}
@@ -200,12 +215,17 @@ func buildPageData(transactions []Transaction) PageData {
 
 	var views []TransactionView
 	for _, t := range transactions {
+		dataFormatada := t.Data
+		if parsed, err := time.Parse("2006-01-02", t.Data); err == nil {
+			dataFormatada = parsed.Format("02/01/2006")
+		}
 		views = append(views, TransactionView{
 			ID:             t.ID,
 			Category:       t.Category,
 			Type:           t.Type,
 			Valor:          t.Valor,
 			ValorFormatado: formatarValor(t.Valor),
+			Data:           dataFormatada,
 		})
 	}
 
@@ -258,9 +278,16 @@ func buildPageData(transactions []Transaction) PageData {
 	}
 }
 
+var apiBase string
+
 // ── Servidor principal ──
 
 func main() {
+	apiBase = os.Getenv("API_BASE_URL")
+	if apiBase == "" {
+		panic("API_BASE_URL não definida")
+	}
+
 	r := gin.Default()
 
 	// Carrega o template da página principal
@@ -275,6 +302,58 @@ func main() {
 		c.File("login/index.html")
 	})
 
+	// ── Cadastro ──
+	r.GET("/cadastro", func(c *gin.Context) {
+		c.File("login/cadastro.html")
+	})
+
+	r.POST("/cadastro", func(c *gin.Context) {
+		usuario := c.PostForm("username")
+		email := c.PostForm("email")
+		senha := c.PostForm("password")
+		confirma := c.PostForm("confirm")
+
+		erro := func(msg string) {
+			c.String(http.StatusOK, `<span style="color:#DC2626;">%s</span>`, msg)
+		}
+
+		if usuario == "" || email == "" || senha == "" {
+			erro("Preencha todos os campos.")
+			return
+		}
+
+		if senha != confirma {
+			erro("As senhas não coincidem.")
+			return
+		}
+
+		payload := map[string]string{
+			"name":     usuario,
+			"email":    email,
+			"password": senha,
+		}
+
+		jsonData, _ := json.Marshal(payload)
+		resp, err := http.Post(
+			apiBase + "/api/v1/users",
+			"application/json",
+			bytes.NewBuffer(jsonData),
+		)
+		if err != nil {
+			erro("Erro ao conectar com o servidor.")
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode == http.StatusCreated || resp.StatusCode == http.StatusOK {
+			c.Header("HX-Redirect", "/")
+			c.String(http.StatusOK, "")
+			return
+		}
+
+		erro("Não foi possível criar a conta. Usuário ou e-mail já existe.")
+	})
+
 	// ── Rota POST do login ──
 	r.POST("/login", func(c *gin.Context) {
 		usuario := c.PostForm("username")
@@ -282,7 +361,7 @@ func main() {
 
 		fmt.Printf("Tentativa de login → usuário: %s\n", usuario)
 
-		resp, err := http.Get("https://apifinanceiro-aeeo.onrender.com/api/v1/users")
+		resp, err := http.Get(apiBase + "/api/v1/users")
 		if err != nil {
 			c.String(http.StatusInternalServerError, "Erro ao conectar com a API.")
 			return
@@ -317,7 +396,6 @@ func main() {
 		}
 
 		if userValid {
-			// Salva o user_id e nome na sessão
 			session, _ := store.Get(c.Request, "livro-session")
 			session.Values["user_id"] = loggedUserID
 			session.Values["user_name"] = loggedUserName
@@ -328,12 +406,22 @@ func main() {
 			return
 		}
 
-		c.String(http.StatusUnauthorized, "Usuário inválido ou não encontrado.")
+		c.String(http.StatusOK, `<span style="color:#DC2626;">Usuário ou senha incorretos.</span>`)
+	})
+
+	// ── Logout ──
+	r.GET("/sair", func(c *gin.Context) {
+		session, _ := store.Get(c.Request, "livro-session")
+		session.Options.MaxAge = -1
+		session.Save(c.Request, c.Writer)
+		c.Redirect(http.StatusFound, "/")
 	})
 
 	// ── Página principal (dashboard) com Go template ──
 	r.GET("/dashboard", func(c *gin.Context) {
-		c.Header("Cache-Control", "no-store")
+		c.Header("Cache-Control", "no-store, no-cache, must-revalidate")
+		c.Header("Pragma", "no-cache")
+		c.Header("Expires", "0")
 		session, _ := store.Get(c.Request, "livro-session")
 		userID, ok := session.Values["user_id"].(string)
 		if !ok || userID == "" {
@@ -347,7 +435,7 @@ func main() {
 			transactions = []Transaction{}
 		}
 
-		// Filtra apenas as transações do usuário logado
+		// Filtra por usuário logado
 		var userTransactions []Transaction
 		for _, t := range transactions {
 			if t.UserID == userID {
@@ -355,7 +443,25 @@ func main() {
 			}
 		}
 
+		// Filtra por período
+		diasStr := c.DefaultQuery("dias", "")
+		var diasN int
+		fmt.Sscanf(diasStr, "%d", &diasN)
+		if diasN > 0 {
+			now := time.Now()
+			cutoff := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location()).AddDate(0, 0, -diasN)
+			var filtered []Transaction
+			for _, t := range userTransactions {
+				parsed, err := time.Parse("2006-01-02", t.Data)
+				if err == nil && !parsed.Before(cutoff) {
+					filtered = append(filtered, t)
+				}
+			}
+			userTransactions = filtered
+		}
+
 		data := buildPageData(userTransactions)
+		data.FiltroAtivo = diasStr
 
 		c.Header("Content-Type", "text/html; charset=utf-8")
 		if err := mainTmpl.Execute(c.Writer, data); err != nil {
@@ -393,6 +499,7 @@ func main() {
 			"category": category,
 			"type":     tipo,
 			"valor":    valor,
+			"data":     time.Now().Format("2006-01-02"),
 		}
 
 		jsonData, err := json.Marshal(payload)
@@ -402,7 +509,7 @@ func main() {
 		}
 
 		resp, err := http.Post(
-			"https://apifinanceiro-aeeo.onrender.com/api/v1/transactions",
+			apiBase + "/api/v1/transactions",
 			"application/json",
 			strings.NewReader(string(jsonData)),
 		)
@@ -420,6 +527,36 @@ func main() {
 		}
 
 		c.String(http.StatusInternalServerError, `<span style="color:var(--expense)">Erro ao salvar movimentação.</span>`)
+	})
+
+	r.GET("/exportar-csv", func(c *gin.Context) {
+		session, _ := store.Get(c.Request, "livro-session")
+		userID, ok := session.Values["user_id"].(string)
+		if !ok || userID == "" {
+			c.Redirect(http.StatusFound, "/")
+			return
+		}
+
+		transactions, err := fetchTransactions()
+		if err != nil {
+			c.String(http.StatusInternalServerError, "Erro ao buscar transações.")
+			return
+		}
+
+		c.Header("Content-Type", "text/csv; charset=utf-8")
+		c.Header("Content-Disposition", "attachment; filename=movimentacoes.csv")
+
+		c.Writer.WriteString("ID,Categoria,Tipo,Data,Valor\n")
+		for _, t := range transactions {
+			if t.UserID != userID {
+				continue
+			}
+			data := t.Data
+			if parsed, err := time.Parse("2006-01-02", t.Data); err == nil {
+				data = parsed.Format("02/01/2006")
+			}
+			c.Writer.WriteString(fmt.Sprintf("%d,%s,%s,%s,%.2f\n", t.ID, t.Category, t.Type, data, t.Valor))
+		}
 	})
 
 	r.GET("/modal-ia", func(c *gin.Context) {
@@ -459,17 +596,27 @@ func main() {
 		systemPrompt := `Você é um classificador de movimentações financeiras. Sua única função é identificar transações financeiras explícitas no texto.
 
 CRITÉRIOS OBRIGATÓRIOS para considerar uma movimentação válida:
-- O texto deve mencionar explicitamente um valor numérico (ex: 50 reais, R$100, 200)
-- E deve indicar claramente uma transação (gastei, paguei, recebi, comprei, salário, aluguel, etc.)
-- Ambos precisam estar presentes. Sem valor numérico = irrelevante. Sem ação financeira = irrelevante.
+- O texto deve mencionar um valor numérico (ex: 50 reais, R$100, 200, 1k)
+- E deve indicar claramente uma ação financeira
+- Sem ambos = retorne {"error":"irrelevante"}
 
-Se o texto for uma saudação, pergunta, frase aleatória, ou qualquer coisa que não seja uma transação financeira com valor explícito, retorne EXATAMENTE: {"error":"irrelevante"}
+IDENTIFICAÇÃO DO TIPO:
+"Entrada" (dinheiro que ENTROU): recebi, ganhei, salário, freelance, renda, depósito, transferência recebida, caiu na conta, me pagaram, vendi, lucro, rendimento, bônus, prêmio, restituição, reembolso
+"Saida" (dinheiro que SAIU): gastei, paguei, comprei, conta, fatura, parcela, aluguel, despesa, débito, transferi, mandei, enviei, saquei, perdi
 
-Se for válido, retorne SOMENTE um array JSON puro, sem markdown, sem explicações:
+IDENTIFICAÇÃO DA CATEGORIA:
+- Alimentação: mercado, supermercado, restaurante, lanche, comida, ifood, delivery, padaria, açougue, feira
+- Transporte: uber, 99, ônibus, metrô, gasolina, combustível, estacionamento, pedágio, passagem, táxi, carro
+- Moradia: aluguel, condomínio, água, luz, energia, internet, gás, IPTU, reforma, manutenção
+- Salário: salário, freelance, trabalho, serviço prestado, CLT, PJ, honorários, consultoria, projeto
+- Lazer: academia, cinema, viagem, hotel, jogo, streaming, netflix, spotify, show, festa, bar, balada
+- Outros: qualquer coisa que não se encaixe nas categorias acima
+
+Se o texto for saudação, pergunta, receita de bolo, ou qualquer coisa sem valor + ação financeira, retorne EXATAMENTE: {"error":"irrelevante"}
+
+Se for válido, retorne SOMENTE array JSON puro, sem markdown:
 [{"user_id":"` + userID + `","category":"CATEGORIA","type":"Entrada ou Saida","valor":0.00}]
 
-Categorias disponíveis: Alimentação, Transporte, Moradia, Salário, Lazer, Outros
-type: "Entrada" para receitas/salário, "Saida" para gastos/despesas
 user_id: sempre "` + userID + `"
 Não retorne nada além do JSON.`
 
@@ -520,9 +667,10 @@ Não retorne nada além do JSON.`
 		}
 
 		for _, transaction := range transactions {
+			transaction["data"] = time.Now().Format("2006-01-02")
 			jsonData, _ := json.Marshal(transaction)
 			apiResp, err := http.Post(
-				"https://apifinanceiro-aeeo.onrender.com/api/v1/transactions",
+				apiBase + "/api/v1/transactions",
 				"application/json",
 				bytes.NewBuffer(jsonData),
 			)
