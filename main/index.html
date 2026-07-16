@@ -4,150 +4,145 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Livro — Controle Financeiro</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>Financeiro</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap"
-        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/main/style.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 
 <body>
 
-    <div class="app-shell">
+    <!-- Topbar -->
+    <div class="topbar">
+        <span class="brand">Financeiro</span>
+        <div class="date-pill">{{.MesAno}}</div>
+    </div>
 
-        <!-- Topbar -->
-        <div class="topbar">
-            <div class="dot"></div>
-            <div class="brand">Livro
-                <small>controle financeiro pessoal</small>
+    <div class="main-grid">
+
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <h2>Nova movimentação</h2>
+
+            <form hx-post="/transaction" hx-target="#form-message" hx-swap="innerHTML">
+                <div class="field" style="margin-bottom:12px;">
+                    <label for="valor">Valor</label>
+                    <input type="number" step="0.01" id="valor" name="valor" placeholder="0,00" required>
+                </div>
+                <div class="field" style="margin-bottom:12px;">
+                    <label for="categoria">Categoria</label>
+                    <select id="categoria" name="category" required>
+                        <option value="" selected disabled>Selecione…</option>
+                        <option value="Alimentação">Alimentação</option>
+                        <option value="Transporte">Transporte</option>
+                        <option value="Moradia">Moradia</option>
+                        <option value="Salário">Salário</option>
+                        <option value="Lazer">Lazer</option>
+                        <option value="Outros">Outros</option>
+                    </select>
+                </div>
+                <div class="field" style="margin-bottom:14px;">
+                    <label>Tipo</label>
+                    <div class="type-toggle">
+                        <input type="radio" name="type" id="tipo-entrada" value="Entrada" checked>
+                        <label class="entrada" for="tipo-entrada">Entrada</label>
+                        <input type="radio" name="type" id="tipo-saida" value="Saida">
+                        <label class="saida" for="tipo-saida">Saída</label>
+                    </div>
+                </div>
+                <button type="submit" class="btn-save">Salvar</button>
+                <div id="form-message" style="margin-top:8px;font-size:0.8rem;text-align:center;"></div>
+            </form>
+
+            <button type="button" class="btn-ia"
+                hx-get="/modal-ia" hx-target="#modal-container" hx-swap="innerHTML">✦ Adicionar com IA</button>
+        </aside>
+
+        <!-- Right column -->
+        <div class="right-col">
+
+            <!-- Stats -->
+            <div class="stats-row">
+                <div class="stat-card saidas">
+                    <div class="stat-label">Saídas</div>
+                    <div class="stat-value">R$ {{.TotalSaidas}}</div>
+                    <div class="stat-sub">{{.QtdSaidas}} lançamentos</div>
+                </div>
+                <div class="stat-card entradas">
+                    <div class="stat-label">Entradas</div>
+                    <div class="stat-value">R$ {{.TotalEntradas}}</div>
+                    <div class="stat-sub">{{.QtdEntradas}} lançamentos</div>
+                </div>
+                <div class="stat-card saldo">
+                    <div class="stat-label">Saldo</div>
+                    <div class="stat-value">R$ {{.Saldo}}</div>
+                    <div class="stat-sub">disponível hoje</div>
+                </div>
             </div>
-            <div class="date-pill">{{.MesAno}}</div>
-        </div>
 
-        <div class="main-grid">
+            <!-- Table + Chart -->
+            <div class="content-split">
 
-            <!-- Sidebar: Adicionar Movimentação -->
-            <aside class="ticket">
-                <h2>Adicionar movimentação</h2>
-                <form hx-post="/transaction" hx-target="#form-message" hx-swap="innerHTML">
-                    <div class="field">
-                        <label class="form-label-custom" for="valor">Valor</label>
-                        <input type="number" step="0.01" class="form-control-custom" id="valor" name="valor"
-                            placeholder="0.00" required>
+                <div class="ledger">
+                    <div class="ledger-head">
+                        <h2>Movimentações</h2>
+                        <span class="badge-count">{{.QtdTotal}} registros</span>
                     </div>
-                    <div class="field">
-                        <label class="form-label-custom" for="categoria">Categoria</label>
-                        <select class="form-select-custom" id="categoria" name="category" required>
-                            <option value="" selected disabled>Selecione…</option>
-                            <option value="Alimentação">Alimentação</option>
-                            <option value="Transporte">Transporte</option>
-                            <option value="Moradia">Moradia</option>
-                            <option value="Salário">Salário</option>
-                            <option value="Lazer">Lazer</option>
-                            <option value="Outros">Outros</option>
-                        </select>
-                    </div>
-                    <div class="field">
-                        <label class="form-label-custom">Tipo</label>
-                        <div class="type-toggle">
-                            <input type="radio" name="type" id="tipo-entrada" value="Entrada" checked>
-                            <label class="entrada" for="tipo-entrada">Entrada</label>
-                            <input type="radio" name="type" id="tipo-saida" value="Saida">
-                            <label class="saida" for="tipo-saida">Saída</label>
-                        </div>
-                    </div>
-                    <button type="submit" class="btn-save">Salvar</button>
-                    <div id="form-message" style="margin-top: 10px; text-align: center; font-size: 0.82rem;"></div>
-                </form>
-            </aside>
-
-            <!-- Right column -->
-            <div class="right-col">
-
-                <!-- Stat cards -->
-                <div class="stats-row">
-                    <div class="stat-card saidas">
-                        <div class="stat-label">Saídas</div>
-                        <div class="stat-value">R$ {{.TotalSaidas}}</div>
-                        <div class="stat-sub">{{.QtdSaidas}} lançamentos no mês</div>
-                    </div>
-                    <div class="stat-card entradas">
-                        <div class="stat-label">Entradas</div>
-                        <div class="stat-value">R$ {{.TotalEntradas}}</div>
-                        <div class="stat-sub">{{.QtdEntradas}} lançamentos no mês</div>
-                    </div>
-                    <div class="stat-card saldo">
-                        <div class="stat-label">Saldo</div>
-                        <div class="stat-value">R$ {{.Saldo}}</div>
-                        <div class="stat-sub">disponível hoje</div>
-                    </div>
-                </div>
-
-                <!-- Table + chart -->
-                <div class="content-split">
-
-                    <div class="ledger">
-                        <div class="ledger-head">
-                            <h2>Movimentações</h2>
-                            <span class="badge-count">{{.QtdTotal}} registros</span>
-                        </div>
-                        <div class="ledger-table-wrap">
-                            <table class="ledger-table">
-                                <thead>
-                                    <tr>
-                                        <th>ID</th>
-                                        <th>Categoria</th>
-                                        <th>Tipo</th>
-                                        <th class="num">Valor</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {{if .Transactions}}
-                                    {{range .Transactions}}
-                                    <tr>
-                                        <td class="id">#{{.ID}}</td>
-                                        <td>{{.Category}}</td>
-                                        {{if eq .Type "Entrada"}}
-                                        <td><span class="pill-tipo entrada">Entrada</span></td>
-                                        <td class="num val-in">+ R$ {{.ValorFormatado}}</td>
-                                        {{else}}
-                                        <td><span class="pill-tipo saida">Saída</span></td>
-                                        <td class="num val-out">− R$ {{.ValorFormatado}}</td>
-                                        {{end}}
-                                    </tr>
-                                    {{end}}
+                    <div class="ledger-table-wrap">
+                        <table class="ledger-table">
+                            <thead>
+                                <tr>
+                                    <th>ID</th>
+                                    <th>Categoria</th>
+                                    <th>Tipo</th>
+                                    <th class="num">Valor</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{if .Transactions}}
+                                {{range .Transactions}}
+                                <tr>
+                                    <td class="id">#{{.ID}}</td>
+                                    <td>{{.Category}}</td>
+                                    {{if eq .Type "Entrada"}}
+                                    <td><span class="pill-tipo entrada">Entrada</span></td>
+                                    <td class="num val-in">+ R$ {{.ValorFormatado}}</td>
                                     {{else}}
-                                    <tr class="ledger-empty-row">
-                                        <td colspan="4">nenhum lançamento encontrado</td>
-                                    </tr>
+                                    <td><span class="pill-tipo saida">Saída</span></td>
+                                    <td class="num val-out">− R$ {{.ValorFormatado}}</td>
                                     {{end}}
-                                </tbody>
-                            </table>
-                        </div>
+                                </tr>
+                                {{end}}
+                                {{else}}
+                                <tr class="ledger-empty-row">
+                                    <td colspan="4">nenhum lançamento encontrado</td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
                     </div>
-
-                    <div class="chart-card">
-                        <h2>Saídas por categoria</h2>
-                        <div class="donut" style="background: conic-gradient({{.DonutGradient}});">
-                            <div class="donut-label"><strong>R$ {{.TotalSaidas}}</strong>em saídas</div>
-                        </div>
-                        <div class="legend">
-                            {{range .Categorias}}
-                            <div class="legend-item">
-                                <span class="legend-dot" style="background:{{.Cor}}"></span>{{.Nome}}<span
-                                    class="legend-pct">{{.Percentual}}%</span>
-                            </div>
-                            {{end}}
-                        </div>
-                    </div>
-
                 </div>
+
+                <div class="chart-card">
+                    <h2>Saídas por categoria</h2>
+                    <div class="pie-wrap">{{.PieChart}}</div>
+                    <div class="legend">
+                        {{range .Categorias}}
+                        <div class="legend-item">
+                            <span class="legend-dot" style="background:{{.Cor}}"></span>
+                            {{.Nome}}
+                            <span class="legend-pct">{{.Percentual}}%</span>
+                        </div>
+                        {{end}}
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
+
+    <div id="modal-container"></div>
 
 </body>
 

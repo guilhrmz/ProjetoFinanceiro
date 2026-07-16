@@ -1,193 +1,114 @@
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --paper: #FBF7EF;
-  --ink: #14213D;
-  --ink-soft: #2A3452;
-  --gold: #C9A227;
-  --gold-soft: #E4C767;
-  --line: #DCD3BE;
-  --muted: #7A7361;
-  --expense: #B3432B;
-  --expense-bg: #F5E4DE;
+  --bg:      #F9FAFB;
+  --surface: #FFFFFF;
+  --border:  #E5E7EB;
+  --text:    #111827;
+  --muted:   #6B7280;
+  --red:     #EF4444;
+  --red-bg:  #FEF2F2;
 }
 
 body {
   font-family: 'Inter', sans-serif;
-  background: var(--paper);
-  background-image: radial-gradient(circle at 1px 1px, rgba(20, 33, 61, 0.05) 1px, transparent 0);
-  background-size: 22px 22px;
-  color: var(--ink);
+  background: var(--bg);
+  color: var(--text);
   min-height: 100vh;
   display: flex;
   align-items: center;
   justify-content: center;
+  -webkit-font-smoothing: antialiased;
 }
 
-.container {
-  width: 100%;
-  padding: 1rem;
-}
-
-/* ── Card (mesmo "recibo" do formulário do app) ── */
 .login-card {
-  background: #fff;
-  border: 1.5px solid var(--ink);
-  border-radius: 14px;
-  padding: 2.2rem 2rem 2rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 2rem;
   width: 100%;
   max-width: 360px;
-  margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 1.1rem;
-  position: relative;
-  box-shadow: 8px 8px 0 rgba(20, 33, 61, 0.08);
-}
-
-.login-card::before {
-  content: "";
-  position: absolute;
-  top: -8px;
-  left: 20px;
-  right: 20px;
-  height: 16px;
-  background-image: radial-gradient(circle 8px at 8px 8px, var(--paper) 8px, transparent 0);
-  background-size: 16px 16px;
-  background-repeat: repeat-x;
-  background-position: left top;
-}
-
-/* ── Marca ── */
-.brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 0.2rem;
-}
-
-.brand .dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  border: 2px solid var(--gold);
-  background: transparent;
-  flex-shrink: 0;
+  gap: 1rem;
 }
 
 .brand-name {
-  font-family: 'Fraunces', serif;
+  font-size: 0.75rem;
   font-weight: 600;
-  font-size: 1rem;
-  letter-spacing: .02em;
+  color: var(--muted);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
 }
 
-/* ── Título ── */
 .title {
-  font-family: 'Fraunces', serif;
-  font-size: 1.7rem;
+  font-size: 1.375rem;
   font-weight: 600;
-  letter-spacing: -0.01em;
-  color: var(--ink);
+  color: var(--text);
+  letter-spacing: -0.025em;
+  line-height: 1.2;
 }
 
 .subtitle {
-  font-size: 0.85rem;
+  font-size: 0.875rem;
   color: var(--muted);
-  margin-top: -0.7rem;
-  margin-bottom: 0.2rem;
+  margin-top: 2px;
 }
 
-/* ── Campo ── */
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-}
+.field { display: flex; flex-direction: column; gap: 6px; }
 
 .field label {
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.7rem;
+  font-size: 0.8rem;
   font-weight: 500;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.1em;
+  color: var(--text);
 }
 
 .field input {
-  background: var(--paper);
-  border: 1.3px solid var(--ink);
-  border-radius: 8px;
-  color: var(--ink);
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.88rem;
-  padding: 0.65rem 0.85rem;
-  outline: none;
-  transition: box-shadow 0.15s ease;
-}
-
-.field input::placeholder {
-  color: var(--muted);
-  opacity: .8;
-}
-
-.field input:focus {
-  outline: 3px solid var(--gold-soft);
-  outline-offset: 1px;
-  border-color: var(--ink);
-}
-
-/* ── Botão ── */
-button[type="submit"] {
-  margin-top: 0.3rem;
-  background: var(--ink);
-  color: var(--paper);
-  border: 1.5px solid var(--ink);
-  border-radius: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  color: var(--text);
   font-family: 'Inter', sans-serif;
   font-size: 0.9rem;
-  font-weight: 600;
-  letter-spacing: .02em;
-  padding: 0.7rem;
+  padding: 9px 12px;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+}
+
+.field input::placeholder { color: #9CA3AF; }
+
+.field input:focus {
+  border-color: #9CA3AF;
+  box-shadow: 0 0 0 3px rgba(156,163,175,0.15);
+}
+
+button[type="submit"] {
+  background: var(--text);
+  color: #fff;
+  border: none;
+  border-radius: 7px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 10px;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+  transition: opacity 0.15s;
+  width: 100%;
 }
 
-button[type="submit"]:hover {
-  background: var(--gold);
-  border-color: var(--gold);
-  color: var(--ink);
-  transform: translateY(-1px);
-}
+button[type="submit"]:hover { opacity: 0.82; }
 
-button[type="submit"]:active {
-  transform: translateY(0) scale(0.98);
-}
-
-button[type="submit"]:focus-visible {
-  outline: 3px solid var(--gold-soft);
-  outline-offset: 2px;
-}
-
-/* ── Mensagem de erro (preenchida pelo HTMX) ── */
 .login-message {
-  margin-top: 0.2rem;
   min-height: 1rem;
   text-align: center;
-  font-family: 'IBM Plex Mono', monospace;
-  font-size: 0.78rem;
-  color: var(--expense);
+  font-size: 0.8rem;
+  color: var(--red);
+  border-radius: 7px;
 }
 
 .login-message:not(:empty) {
-  background: var(--expense-bg);
-  border: 1px solid var(--expense);
-  border-radius: 8px;
-  padding: 0.5rem 0.6rem;
+  background: var(--red-bg);
+  border: 1px solid #FECACA;
+  padding: 8px 10px;
 }

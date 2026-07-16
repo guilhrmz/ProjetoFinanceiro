@@ -7,8 +7,11 @@
       "request": "launch",
       "mode": "debug",
       "program": "${workspaceFolder}/login",
+      "cwd": "${workspaceFolder}",
       "env": {
-        "GIN_MODE": "debug"
+        "GIN_MODE": "debug",
+        "SESSION_SECRET": "chave-local-dev",
+        "GROQ_API_KEY": "sua_chave_aqui"
       },
       "showLog": true
     }
