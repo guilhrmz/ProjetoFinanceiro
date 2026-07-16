@@ -12,7 +12,7 @@
         "GIN_MODE": "debug",
         "SESSION_SECRET": "chave-local-dev",
         "GROQ_API_KEY": "sua_chave_aqui",
-        "API_BASE_URL": "sua_api_aqui"
+        "API_BASE_URL": "api_aqui"
       },
       "showLog": true
     }
