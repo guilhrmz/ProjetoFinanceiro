@@ -439,8 +439,78 @@ table.ledger-table { width: 100%; border-collapse: collapse; }
 
 .legend-pct { margin-left: auto; font-size: 0.7rem; color: var(--muted); }
 
+/* ── Tablet (≤ 900px) ── */
 @media (max-width: 900px) {
-  .main-grid      { grid-template-columns: 1fr; }
-  .content-split  { grid-template-columns: 1fr; }
-  .stats-row      { grid-template-columns: 1fr; }
+  /* Remove o "app shell" — página passa a ter scroll natural */
+  html, body         { height: auto; }
+  body               { overflow: auto; }
+
+  .main-grid {
+    display: flex;
+    flex-direction: column;
+    overflow: visible;
+    flex: none;
+  }
+
+  /* Sidebar abaixo do conteúdo principal no mobile */
+  .sidebar {
+    order: 2;
+    border-right: none;
+    border-top: 1px solid var(--border);
+  }
+
+  .right-col {
+    order: 1;
+    overflow: visible;
+    padding: 12px;
+    flex: none;
+    gap: 12px;
+  }
+
+  /* Cards: 2 colunas no tablet, saldo ocupa linha inteira */
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .stat-card.saldo { grid-column: 1 / -1; }
+
+  /* Tabela + gráfico em coluna única */
+  .content-split {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    min-height: auto;
+  }
+
+  /* Ledger com altura natural */
+  .ledger { overflow: visible; min-height: auto; }
+
+  .ledger-table-wrap {
+    overflow-x: auto;
+    overflow-y: visible;
+    min-height: auto;
+    flex: none;
+  }
+
+  .chart-card { min-height: auto; overflow: visible; }
+}
+
+/* ── Mobile (≤ 540px) ── */
+@media (max-width: 540px) {
+  /* Cards empilhados */
+  .stats-row          { grid-template-columns: 1fr; }
+  .stat-card.saldo    { grid-column: auto; }
+  .stat-value         { font-size: 1.35rem; }
+
+  /* Topbar compacta */
+  .date-pill          { display: none; }
+
+  /* Tabela: esconde coluna ID para ganhar espaço */
+  .ledger-table td.id,
+  .ledger-table th:first-child { display: none; }
+
+  /* Footer do ledger empilha */
+  .ledger-footer      { flex-direction: column; align-items: flex-start; gap: 8px; }
+
+  /* Padding menor */
+  .right-col          { padding: 10px; }
+  .ledger-table tbody td { padding: 8px 10px; }
+  .ledger-table thead th { padding: 8px 10px; }
 }
