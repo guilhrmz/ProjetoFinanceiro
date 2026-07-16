@@ -54,6 +54,23 @@ body { display: flex; flex-direction: column; }
   border-radius: 5px;
 }
 
+.btn-sair {
+  margin-left: 10px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 3px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-sair:hover {
+  color: var(--red);
+  border-color: var(--red);
+}
+
 /* ── Layout ── */
 .main-grid {
   display: grid;
@@ -273,6 +290,23 @@ body { display: flex; flex-direction: column; }
   color: var(--muted);
 }
 
+.filtro-bar {
+  display: flex;
+  gap: 4px;
+}
+.filtro-btn {
+  padding: 3px 9px;
+  border-radius: 5px;
+  font-size: 0.7rem;
+  font-weight: 500;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  text-decoration: none;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.filtro-btn:hover { color: var(--ink); border-color: #9CA3AF; }
+.filtro-btn.ativo { color: var(--blue); border-color: var(--blue); background: var(--blue-bg); }
+
 .ledger-table-wrap { flex: 1; overflow-y: auto; min-height: 0; }
 
 table.ledger-table { width: 100%; border-collapse: collapse; }
@@ -304,6 +338,7 @@ table.ledger-table { width: 100%; border-collapse: collapse; }
 .ledger-table tbody tr:hover { background: var(--surface2); }
 .ledger-table td.num { text-align: right; font-weight: 500; }
 .ledger-table td.id { color: var(--muted); font-size: 0.75rem; }
+.ledger-table td.data { color: var(--muted); font-size: 0.75rem; white-space: nowrap; }
 
 .pill-tipo {
   font-size: 0.68rem;
@@ -326,6 +361,32 @@ table.ledger-table { width: 100%; border-collapse: collapse; }
   color: var(--muted);
   font-size: 0.85rem;
   padding: 28px;
+}
+
+.ledger-footer {
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.btn-csv {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.btn-csv:hover {
+  color: var(--text);
+  border-color: #9CA3AF;
 }
 
 /* ── Chart card ── */
