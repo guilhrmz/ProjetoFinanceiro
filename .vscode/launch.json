@@ -11,8 +11,8 @@
       "env": {
         "GIN_MODE": "debug",
         "SESSION_SECRET": "chave-local-dev",
-        "GROQ_API_KEY": "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",
-        "API_BASE_URL": "https://apifinanceiro-aeeo.onrender.com"
+        "GROQ_API_KEY": "sua-chave-aqui",
+        "API_BASE_URL": "api-aqui"
       },
       "showLog": true
     }
