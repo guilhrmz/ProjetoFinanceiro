@@ -23,13 +23,15 @@ type groqMessage struct {
 }
 
 type groqRequest struct {
-	Model    string        `json:"model"`
-	Messages []groqMessage `json:"messages"`
+	Model     string        `json:"model"`
+	Messages  []groqMessage `json:"messages"`
+	MaxTokens int           `json:"max_tokens,omitempty"`
 }
 
 type groqResponse struct {
 	Choices []struct {
-		Message groqMessage `json:"message"`
+		Message      groqMessage `json:"message"`
+		FinishReason string      `json:"finish_reason"`
 	} `json:"choices"`
 }
 
@@ -153,17 +155,14 @@ func gerarPieChart(categorias []CategoriaView, total float64) template.HTML {
 
 func formatarValor(v float64) string {
 	v = math.Round(v*100) / 100
+	negative := v < 0
+	if negative {
+		v = -v
+	}
 	inteira := int64(v)
 	decimal := int64(math.Round((v - float64(inteira)) * 100))
-	if decimal < 0 {
-		decimal = -decimal
-	}
 
 	s := fmt.Sprintf("%d", inteira)
-	if inteira < 0 {
-		s = fmt.Sprintf("%d", -inteira)
-	}
-
 	if len(s) > 3 {
 		var parts []string
 		for len(s) > 3 {
@@ -174,7 +173,11 @@ func formatarValor(v float64) string {
 		s = strings.Join(parts, ".")
 	}
 
-	return fmt.Sprintf("%s,%02d", s, decimal)
+	result := fmt.Sprintf("%s,%02d", s, decimal)
+	if negative {
+		return "-" + result
+	}
+	return result
 }
 
 func fetchTransactions() ([]Transaction, error) {
@@ -335,7 +338,7 @@ func main() {
 
 		jsonData, _ := json.Marshal(payload)
 		resp, err := http.Post(
-			apiBase + "/api/v1/users",
+			apiBase+"/api/v1/users",
 			"application/json",
 			bytes.NewBuffer(jsonData),
 		)
@@ -509,7 +512,7 @@ func main() {
 		}
 
 		resp, err := http.Post(
-			apiBase + "/api/v1/transactions",
+			apiBase+"/api/v1/transactions",
 			"application/json",
 			strings.NewReader(string(jsonData)),
 		)
@@ -566,7 +569,7 @@ func main() {
 				<div style="background:#fff;border:1px solid #E5E7EB;border-radius:10px;padding:22px;width:100%;max-width:420px;display:flex;flex-direction:column;gap:14px;box-shadow:0 4px 20px rgba(0,0,0,0.08);">
 					<h3 style="margin:0;font-family:'Inter',sans-serif;font-size:0.7rem;font-weight:600;color:#6B7280;text-transform:uppercase;letter-spacing:0.1em;">Adicionar com IA</h3>
 					<form hx-post="/ia" hx-target="#modal-container" hx-swap="innerHTML">
-						<textarea name="teste" rows="4" placeholder="Ex: gastei 50 reais no mercado, recebi 3000 de salário..." style="width:100%;resize:none;border-radius:6px;border:1px solid #E5E7EB;padding:10px 12px;font-size:0.875rem;background:#F9FAFB;color:#111827;font-family:'Inter',sans-serif;outline:none;transition:border-color 0.15s;"></textarea>
+						<textarea name="teste" rows="6" placeholder="Saída: categoria -valor&#10;Entrada: categoria valor&#10;&#10;Ex:&#10;mercado -90&#10;salario 1200&#10;academia -80" style="width:100%;resize:none;border-radius:6px;border:1px solid #E5E7EB;padding:10px 12px;font-size:0.875rem;background:#F9FAFB;color:#111827;font-family:'Inter',sans-serif;outline:none;transition:border-color 0.15s;"></textarea>
 						<div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px;">
 							<button type="button" hx-get="/modal-fechar" hx-target="#modal-container" hx-swap="innerHTML"
 								style="padding:7px 16px;border-radius:6px;border:1px solid #E5E7EB;background:#fff;color:#6B7280;cursor:pointer;font-family:'Inter',sans-serif;font-size:0.875rem;font-weight:500;">Cancelar</button>
@@ -593,39 +596,115 @@ func main() {
 		texto := c.PostForm("teste")
 		fmt.Println("teste:", texto)
 
-		systemPrompt := `Você é um classificador de movimentações financeiras. Sua única função é identificar transações financeiras explícitas no texto.
+		systemPrompt := `Você é um classificador de movimentações financeiras. Extraia transações do texto e retorne JSON.
 
-CRITÉRIOS OBRIGATÓRIOS para considerar uma movimentação válida:
-- O texto deve mencionar um valor numérico (ex: 50 reais, R$100, 200, 1k)
-- E deve indicar claramente uma ação financeira
-- Sem ambos = retorne {"error":"irrelevante"}
+REGRA: Para ser válida, a movimentação DEVE ter um valor numérico e uma categoria identificável. Sem ambos → {"error":"irrelevante"}
 
-IDENTIFICAÇÃO DO TIPO:
-"Entrada" (dinheiro que ENTROU): recebi, ganhei, salário, freelance, renda, depósito, transferência recebida, caiu na conta, me pagaram, vendi, lucro, rendimento, bônus, prêmio, restituição, reembolso
-"Saida" (dinheiro que SAIU): gastei, paguei, comprei, conta, fatura, parcela, aluguel, despesa, débito, transferi, mandei, enviei, saquei, perdi
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+TIPO — REGRA DO SINAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+O tipo é determinado pelo sinal do valor, não por contexto ou verbos.
 
-IDENTIFICAÇÃO DA CATEGORIA:
-- Alimentação: mercado, supermercado, restaurante, lanche, comida, ifood, delivery, padaria, açougue, feira
-- Transporte: uber, 99, ônibus, metrô, gasolina, combustível, estacionamento, pedágio, passagem, táxi, carro
-- Moradia: aluguel, condomínio, água, luz, energia, internet, gás, IPTU, reforma, manutenção
-- Salário: salário, freelance, trabalho, serviço prestado, CLT, PJ, honorários, consultoria, projeto
-- Lazer: academia, cinema, viagem, hotel, jogo, streaming, netflix, spotify, show, festa, bar, balada
-- Outros: qualquer coisa que não se encaixe nas categorias acima
+- Valor NEGATIVO (ex: -90, -1200) → type: "Saida"
+- Valor POSITIVO (ex: 90, 1200)   → type: "Entrada"
 
-Se o texto for saudação, pergunta, receita de bolo, ou qualquer coisa sem valor + ação financeira, retorne EXATAMENTE: {"error":"irrelevante"}
+O campo "valor" no JSON deve ser SEMPRE positivo (número absoluto).
+O sinal serve apenas para determinar o type.
 
-Se for válido, retorne SOMENTE array JSON puro, sem markdown:
-[{"user_id":"` + userID + `","category":"CATEGORIA","type":"Entrada ou Saida","valor":0.00}]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+MAPEAMENTO DE PALAVRAS → CATEGORIA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+mercado/supermercado/feira → "Supermercado" (Saida)
+ifood/delivery/restaurante/pizza/lanche/restaurante → "Restaurante / Delivery" (Saida)
+padaria/café/cafeteria → "Padaria / Cafeteria" (Saida)
+uber/99/cabify/taxi → "Aplicativo (Uber/99)" (Saida)
+gasolina/etanol/combustível → "Combustível" (Saida)
+ônibus/metrô/trem/transporte → "Transporte Público" (Saida)
+oficina/mecânico/manutenção carro/manutenção veículo → "Manutenção do Veículo" (Saida)
+pedágio/estacionamento/zona azul → "Pedágio / Estacionamento" (Saida)
+aluguel/financiamento casa/casa (quando é despesa) → "Aluguel / Financiamento" (Saida)
+aluguel recebido → "Aluguel Recebido" (Entrada)
+água/luz/energia/internet/telefone/streaming → veja grupo Moradia/Lazer (Saida)
+internet/telefone/plano celular → "Internet e Telefone" (Saida)
+luz/energia/água → "Água e Luz" (Saida)
+streaming/Netflix/Spotify/Disney+/HBO → "Streaming" (Saida)
+gás/botijão → "Gás" (Saida)
+reforma/conserto/encanador/eletricista/manutenção → "Manutenção" (Saida)
+remédio/farmácia/drogaria → "Farmácia" (Saida)
+médico/dentista/exame/consulta/psicólogo → "Consulta / Exame" (Saida)
+plano de saúde/convênio → "Plano de Saúde" (Saida)
+academia/personal/musculação/crossfit → "Academia" (Saida)
+escola/faculdade/universidade/mensalidade → "Escola / Faculdade" (Saida)
+curso/Udemy/Alura/workshop/bootcamp/curso online → "Cursos e Treinamentos" (Saida)
+livro/material escolar → "Livros e Material" (Saida)
+IPTU/imposto predial → "IPTU" (Saida)
+IPVA/imposto carro/licenciamento → "IPVA" (Saida)
+IR/imposto de renda/IRPF → "Imposto de Renda" (Saida)
+tarifa bancária/taxa bancária/anuidade cartão/IOF → "Taxas Bancárias" (Saida)
+cartão crédito/fatura cartão → "Outros" (Saida)
+cinema/teatro/show/ingresso/evento → "Cinema / Shows" (Saida)
+viagem/hotel/passagem/Airbnb/hospedagem → "Viagem" (Saida)
+jogo/game/hobby/Steam → "Hobbies" (Saida)
+roupa/calçado/sapato/tênis/roupas/calçados → "Roupas e Calçados" (Saida)
+bolsa/mochila/relógio/óculos/acessório → "Acessórios" (Saida)
+parcela/crediário/financiamento/móveis/eletrodoméstico → "Outros" (Saida)
+seguro carro/seguro vida/seguro residencial → "Seguro" (Saida)
+presente/doação/gift → "Presentes / Doações" (Saida)
+veterinário/ração/pet shop/banho tosa → "Pet" (Saida)
+salário/CLT/PJ/holerite → "Salário" (Entrada)
+freelance/bico/renda extra/serviço avulso → "Freelance / Renda Extra" (Entrada)
+reembolso/ressarcimento/devolução → "Reembolso" (Entrada)
+multa/infração → "Taxas Bancárias" (Saida)
+salão/barbearia/cabeleireiro → "Outros" (Saida)
+lazer/outros → "Outros" (Saida)
+assinatura software/software/SaaS → "Hobbies" (Saida)
 
-user_id: sempre "` + userID + `"
-Não retorne nada além do JSON.`
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXEMPLOS FEW-SHOT
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Entrada do usuário:
+  mercado -350
+  salario 2500
+  luz -180
+  freelance 600
+  uber -100
+  investimento -400
+  dividendos 120
+
+Saída esperada:
+[
+  {"user_id":"USR","category":"Supermercado","type":"Saida","valor":350},
+  {"user_id":"USR","category":"Salário","type":"Entrada","valor":2500},
+  {"user_id":"USR","category":"Água e Luz","type":"Saida","valor":180},
+  {"user_id":"USR","category":"Freelance / Renda Extra","type":"Entrada","valor":600},
+  {"user_id":"USR","category":"Aplicativo (Uber/99)","type":"Saida","valor":100},
+  {"user_id":"USR","category":"Investimentos","type":"Saida","valor":400},
+  {"user_id":"USR","category":"Investimentos","type":"Entrada","valor":120}
+]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FORMATO DE SAÍDA
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Inválido (sem valor ou sem categoria): {"error":"irrelevante"}
+- Válido: array JSON puro, sem markdown, sem texto extra
+
+[{"user_id":"` + userID + `","category":"CATEGORIA_EXATA","type":"Entrada ou Saida","valor":0.00}]
+
+ATENÇÃO:
+- user_id: sempre "` + userID + `"
+- type: "Entrada" ou "Saida" (Saida sem acento)
+- category: exatamente um dos valores listados acima, com acentuação correta
+- valor: número positivo, sem símbolo de moeda
+- Não inclua o campo "data"
+- Retorne APENAS o array JSON, nada mais`
 
 		reqBody, _ := json.Marshal(groqRequest{
-			Model: "llama-3.1-8b-instant",
+			Model: "llama-3.3-70b-versatile",
 			Messages: []groqMessage{
 				{Role: "system", Content: systemPrompt},
 				{Role: "user", Content: texto},
 			},
+			MaxTokens: 4096,
 		})
 
 		httpReq, _ := http.NewRequest("POST", "https://api.groq.com/openai/v1/chat/completions", bytes.NewBuffer(reqBody))
@@ -640,25 +719,49 @@ Não retorne nada além do JSON.`
 		defer httpResp.Body.Close()
 
 		body, _ := io.ReadAll(httpResp.Body)
+		fmt.Println("Groq status:", httpResp.StatusCode)
+		fmt.Println("Groq body:", string(body))
+
 		var gr groqResponse
 		if err := json.Unmarshal(body, &gr); err != nil || len(gr.Choices) == 0 {
-			c.String(http.StatusOK, modalErro("Erro ao processar resposta da IA."))
+			var groqErr struct {
+				Error struct {
+					Message string `json:"message"`
+					Code    string `json:"code"`
+				} `json:"error"`
+			}
+			if json.Unmarshal(body, &groqErr) == nil && groqErr.Error.Message != "" {
+				c.String(http.StatusOK, modalErro("Erro da IA: "+groqErr.Error.Message))
+			} else {
+				c.String(http.StatusOK, modalErro("Erro ao processar resposta da IA."))
+			}
 			return
 		}
 
-		content := strings.TrimSpace(gr.Choices[0].Message.Content)
-		content = strings.TrimPrefix(content, "```json")
-		content = strings.TrimPrefix(content, "```")
-		content = strings.TrimSuffix(content, "```")
-		content = strings.TrimSpace(content)
+		if gr.Choices[0].FinishReason == "length" {
+			c.String(http.StatusOK, modalErro("A lista é muito grande. Tente enviar em partes menores (até ~20 itens por vez)."))
+			return
+		}
 
+		raw := strings.TrimSpace(gr.Choices[0].Message.Content)
+
+		// Verifica se é resposta de erro {"error":"..."}
 		var errCheck struct {
 			Error string `json:"error"`
 		}
-		if json.Unmarshal([]byte(content), &errCheck) == nil && errCheck.Error != "" {
+		if json.Unmarshal([]byte(raw), &errCheck) == nil && errCheck.Error != "" {
 			c.String(http.StatusOK, modalErro("Não consegui identificar uma movimentação financeira no texto. Tente descrever um gasto ou receita."))
 			return
 		}
+
+		// Extrai o array JSON independente de markdown ou texto extra ao redor
+		start := strings.Index(raw, "[")
+		end := strings.LastIndex(raw, "]")
+		if start == -1 || end == -1 || end < start {
+			c.String(http.StatusOK, modalErro("A IA retornou um formato inesperado. Tente novamente."))
+			return
+		}
+		content := raw[start : end+1]
 
 		var transactions []map[string]interface{}
 		if err := json.Unmarshal([]byte(content), &transactions); err != nil {
@@ -670,7 +773,7 @@ Não retorne nada além do JSON.`
 			transaction["data"] = time.Now().Format("2006-01-02")
 			jsonData, _ := json.Marshal(transaction)
 			apiResp, err := http.Post(
-				apiBase + "/api/v1/transactions",
+				apiBase+"/api/v1/transactions",
 				"application/json",
 				bytes.NewBuffer(jsonData),
 			)
