@@ -11,8 +11,8 @@
       "env": {
         "GIN_MODE": "debug",
         "SESSION_SECRET": "chave-local-dev",
-        "GROQ_API_KEY": "sua_chave_aqui",
-        "API_BASE_URL": "api_aqui"
+        "GROQ_API_KEY": "sua-chave-aqui",
+        "API_BASE_URL": "api-aqui"
       },
       "showLog": true
     }
